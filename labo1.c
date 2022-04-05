@@ -101,6 +101,8 @@ int main()
 	RES.data = multiply(A, B);
 	print(RES);
 
+
+
 	/*printf("Quante righe ha la terza matrice? ");
 	scanf("%d", &row3);
 	printf("Quante colonne ha la terza matrice? ");
