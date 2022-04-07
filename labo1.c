@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
 
 struct Matrix
 {
@@ -9,11 +10,18 @@ struct Matrix
 	int **data; // <- note that this is a pointer to one dim array
 };
 
-int** allocMatrix(struct Matrix mat){
+struct toMult
+{
+	struct Matrix* mat1;
+	struct Matrix* mat2;
+};
+
+int **allocMatrix(struct Matrix mat)
+{
 	mat.data = malloc(mat.rows * sizeof(int *));
 	for (int i = 0; i < mat.rows; i++)
 		mat.data[i] = (int *)calloc(mat.cols, sizeof(int));
-	
+
 	return mat.data;
 }
 
@@ -27,23 +35,24 @@ void print(struct Matrix mat)
 	}
 }
 
-int **multiply(struct Matrix mat1, struct Matrix mat2)
+void *multiply(void *var)
 {
-	int **result = malloc(mat1.rows * sizeof(int *));
-	for (int i = 0; i < mat1.rows; i++)
-		result[i] = (int *)calloc(mat2.cols, sizeof(int));
+	struct toMult *mat = (struct toMult *)var;
+	struct Matrix result = {mat->mat1->rows, mat->mat2->cols};
+	result.data = allocMatrix(result);
 
-	for (int i = 0; i < mat1.rows; i++)
+	for (int i = 0; i < mat->mat1->rows; i++)
 	{
-		for (int j = 0; j < mat2.cols; j++)
+		for (int j = 0; j < mat->mat2->cols; j++)
 		{
 			// find product
-			for (int k = 0; k < mat1.cols; k++)
-				result[i][j] += mat1.data[i][k] * mat2.data[k][j];
+			for (int k = 0; k < mat->mat1->cols; k++)
+				result.data[i][j] += mat->mat1->data[i][k] * mat->mat2->data[k][j];
 		}
+		//print(mat->mat1);
 	}
-
-	return result;
+	print(result);
+	return &result;
 }
 
 int **init(struct Matrix mat)
@@ -58,100 +67,143 @@ int **init(struct Matrix mat)
 		for (j = 0; j < mat.cols; j++)
 			mat.data[i][j] = (rand() % 10); // Or *(*(arr+i)+j) = ++count
 
-	//print(mat);
+	// print(mat);
 
 	return mat.data;
 }
 
-int ** merge(struct Matrix mat1, struct Matrix mat2){
-	
-	struct Matrix res = {mat1.rows+mat2.rows, mat2.cols};
-	res.data=allocMatrix(res);
-	
-	for (int i = 0; i < mat1.rows; i++){
-		for (int j = 0; j < mat1.cols; j++){
+int **merge(struct Matrix mat1, struct Matrix mat2)
+{
+
+	struct Matrix res = {mat1.rows + mat2.rows, mat2.cols};
+	res.data = allocMatrix(res);
+
+	for (int i = 0; i < mat1.rows; i++)
+	{
+		for (int j = 0; j < mat1.cols; j++)
+		{
 			res.data[i][j] = mat1.data[i][j];
 		}
 	}
-	
-	for (int i = mat1.rows; i < res.rows; i++){
-		for (int j = 0; j < res.cols; j++){
-			res.data[i][j] = mat2.data[i-mat1.rows][j];
+
+	for (int i = mat1.rows; i < res.rows; i++)
+	{
+		for (int j = 0; j < res.cols; j++)
+		{
+			res.data[i][j] = mat2.data[i - mat1.rows][j];
 		}
 	}
 
 	return res.data;
-
 }
 
-//divido la matrice a sinistra in blocchi, moltiplico ogni blocco per la matrice di destra e concateno i risulatati
-void decomp(struct Matrix mat1, struct Matrix mat2, int block)
+struct Matrix *decomp(int block, struct Matrix mat1, int index)
+{
+	int row = mat1.rows / block;
+	struct Matrix temp = {row, mat1.cols};
+	temp.data = allocMatrix(temp);
+
+	int l = 0;
+
+	for (int i = index; i < row; i++)
+	{
+		for (int j = 0; j < mat1.cols; j++)
+		{
+			temp.data[i][j] = mat1.data[l][j];
+		}
+		l++;
+	}
+	return &temp;
+}
+
+void threadCreate(struct Matrix mat1, struct Matrix mat2, int block)
 {
 	int row = mat1.rows / block;
 
-	struct Matrix res = {0, mat2.cols};
-	res.data=allocMatrix(res);
+	pthread_t *threads = (pthread_t *)calloc(block, sizeof(pthread_t *));
+	struct Matrix *retvals = (struct Matrix *)calloc(block, sizeof(struct Matrix *));
 
-	struct Matrix temp = {row, mat1.cols};
-	temp.data=allocMatrix(temp);
+	struct toMult args;
+
+	struct Matrix res = {0, mat2.cols};
+	res.data = allocMatrix(res);
 
 	struct Matrix toMerge = {row, mat2.cols};
-	toMerge.data=allocMatrix(toMerge);
+	toMerge.data = allocMatrix(toMerge);
 
-	int l=0;
+	int index = 0;
+	args.mat2 = &mat2;
 
-	for (int k = 0; k<block; k++){
-		for (int i = 0; i < row; i++){
-			for (int j = 0; j < mat1.cols; j++){
-				temp.data[i][j] = mat1.data[l][j];
+	int count = 0;
+		
+		//-----------------------------------------------------------------------------------------------------------
+
+		for (count = 0; count < block; ++count)
+		{
+			args.mat1 = decomp(block, mat1, index);
+			if (pthread_create(&threads[count], NULL, multiply, &args) != 0)
+			{
+				fprintf(stderr, "error: Cannot create thread # %d\n", count);
+				break;
 			}
-		l++;
-		}	
-	toMerge.data=multiply(temp, mat2);
-	res.data = merge(res, toMerge);
-	res.rows+=toMerge.rows;
-	}
+			index += row;
+		}
+		for (int i = 0; i < count; ++i)
+		{
+			if (pthread_join(threads[i], &retvals[i]) != 0)
+			{
+				fprintf(stderr, "error: Cannot join thread # %d\n", i);
+			}
+		}
+		//-------------------------------------------------------------------------------------------------------------
+
+		/*toMerge.data=multiply(temp, mat2);
+		res.data = merge(res, toMerge);*/
+		//------------------------------ threading
+		// res.rows+=toMerge.rows;
+		
+		print(retvals[0]);
+		//printf("%d", retvals[j].rows);
+	
 
 	printf("----------------\n");
 	print(res);
 }
 
-
 int main()
 {
-	//int **mat1, **mat2, **mat3, **res;
+	// int **mat1, **mat2, **mat3, **res;
 	int row1, col1, row2, col2, row3, col3, blockNumber, blockSize;
 
 	printf("Quante righe ha la prima matrice? ");
 	scanf("%d", &row1);
 	printf("Quante colonne ha la prima matrice? ");
 	scanf("%d", &col1);
-	
+
 	struct Matrix mat1 = {row1, col1};
-	mat1.data=allocMatrix(mat1);
-	mat1.data=init(mat1);
-	
-	print(mat1);
+	mat1.data = allocMatrix(mat1);
+	mat1.data = init(mat1);
+
+	//print(mat1);
 
 	printf("Quante righe ha la seconda matrice? ");
 	scanf("%d", &row2);
 	printf("Quante colonne ha la seconda matrice? ");
 	scanf("%d", &col2);
-	
-	struct Matrix mat2 = {row2, col2};
-	mat2.data=allocMatrix(mat2);
-	mat2.data=init(mat2);
-	
-	print(mat2);
 
-	decomp(mat1, mat2, 4);
+	struct Matrix mat2 = {row2, col2};
+	mat2.data = allocMatrix(mat2);
+	mat2.data = init(mat2);
+
+	//print(mat2);
+	printf("-------------------------\n");
+	threadCreate(mat1, mat2, 2);
+	// multiply(mat1, mat2);
 
 	/*struct Matrix RES = {A.rows, B.cols, res};
 	printf("-------------------------\n");
 	RES.data = multiply(A, B);
 	print(RES);*/
-
-
 
 	/*printf("Quante righe ha la terza matrice? ");
 	scanf("%d", &row3);
