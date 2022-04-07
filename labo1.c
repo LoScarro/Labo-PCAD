@@ -41,6 +41,8 @@ void *multiply(void *var)
 	struct Matrix result = {mat->mat1->rows, mat->mat2->cols};
 	result.data = allocMatrix(result);
 
+	print(*mat->mat2);
+
 	for (int i = 0; i < mat->mat1->rows; i++)
 	{
 		for (int j = 0; j < mat->mat2->cols; j++)
@@ -51,7 +53,6 @@ void *multiply(void *var)
 		}
 		//print(mat->mat1);
 	}
-	print(result);
 	return &result;
 }
 
@@ -97,9 +98,8 @@ int **merge(struct Matrix mat1, struct Matrix mat2)
 	return res.data;
 }
 
-struct Matrix *decomp(int block, struct Matrix mat1, int index)
+struct Matrix decomp(int row, struct Matrix mat1, int index)
 {
-	int row = mat1.rows / block;
 	struct Matrix temp = {row, mat1.cols};
 	temp.data = allocMatrix(temp);
 
@@ -113,26 +113,29 @@ struct Matrix *decomp(int block, struct Matrix mat1, int index)
 		}
 		l++;
 	}
-	return &temp;
+	return temp;
 }
 
-void threadCreate(struct Matrix mat1, struct Matrix mat2, int block)
+void threadCreate(struct Matrix *mat1, struct Matrix *mat2, int block)
 {
-	int row = mat1.rows / block;
+	int row = mat1->rows / block;
+
+	struct Matrix temp = {row, mat1->cols};
+	temp.data = allocMatrix(temp);
 
 	pthread_t *threads = (pthread_t *)calloc(block, sizeof(pthread_t *));
 	struct Matrix *retvals = (struct Matrix *)calloc(block, sizeof(struct Matrix *));
 
 	struct toMult args;
 
-	struct Matrix res = {0, mat2.cols};
+	struct Matrix res = {0, mat2->cols};
 	res.data = allocMatrix(res);
 
-	struct Matrix toMerge = {row, mat2.cols};
+	struct Matrix toMerge = {row, mat2->cols};
 	toMerge.data = allocMatrix(toMerge);
 
 	int index = 0;
-	args.mat2 = &mat2;
+	args.mat2 = mat2;
 
 	int count = 0;
 		
@@ -140,7 +143,8 @@ void threadCreate(struct Matrix mat1, struct Matrix mat2, int block)
 
 		for (count = 0; count < block; ++count)
 		{
-			args.mat1 = decomp(block, mat1, index);
+			temp=decomp(row, *mat1, index);
+			args.mat1 = &temp;
 			if (pthread_create(&threads[count], NULL, multiply, &args) != 0)
 			{
 				fprintf(stderr, "error: Cannot create thread # %d\n", count);
@@ -167,7 +171,6 @@ void threadCreate(struct Matrix mat1, struct Matrix mat2, int block)
 	
 
 	printf("----------------\n");
-	print(res);
 }
 
 int main()
@@ -197,7 +200,7 @@ int main()
 
 	//print(mat2);
 	printf("-------------------------\n");
-	threadCreate(mat1, mat2, 2);
+	threadCreate(&mat1, &mat2, 2);
 	// multiply(mat1, mat2);
 
 	/*struct Matrix RES = {A.rows, B.cols, res};
