@@ -41,7 +41,7 @@ void *multiply(void *var)
 	struct Matrix result = {mat->mat1->rows, mat->mat2->cols};
 	result.data = allocMatrix(result);
 
-	print(*mat->mat2);
+	//print(*mat->mat2);
 
 	for (int i = 0; i < mat->mat1->rows; i++)
 	{
@@ -158,6 +158,7 @@ void threadCreate(struct Matrix *mat1, struct Matrix *mat2, int block)
 			{
 				fprintf(stderr, "error: Cannot join thread # %d\n", i);
 			}
+			print(retvals[i]);
 		}
 		//-------------------------------------------------------------------------------------------------------------
 
