@@ -80,18 +80,18 @@ struct Matrix merge(struct Matrix mat1, struct Matrix mat2)
 	return res;
 }
 
-struct Matrix decomp(int row, struct Matrix mat1, int index)
+struct Matrix decomp(int row, struct Matrix mat, int index)
 {
-	struct Matrix temp = {row, mat1.cols};
+	struct Matrix temp = {row, mat.cols};
 	temp.data = allocMatrix(temp);
 
 	int l = 0;
 
 	for (int i = index; i < index + row; i++)
 	{
-		for (int j = 0; j < mat1.cols; j++)
+		for (int j = 0; j < mat.cols; j++)
 		{
-			temp.data[l][j] = mat1.data[i][j];
+			temp.data[l][j] = mat.data[i][j];
 		}
 		l++;
 	}

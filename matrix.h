@@ -29,6 +29,6 @@ void print(struct Matrix mat);      // Stampa la matrice
 float **init(struct Matrix mat);        // Inizializza una matrice con float randomici
 void *multiply(void *var);      // Moltiplica due matrici
 struct Matrix merge(struct Matrix mat1, struct Matrix mat2);        // Unisce due matrici
-struct Matrix decomp(int row, struct Matrix mat1, int index);       // Divide una matrice in blocchi
+struct Matrix decomp(int row, struct Matrix mat, int index);       // Divide una matrice in blocchi
 struct Matrix threadCreate(struct Matrix *mat1, struct Matrix *mat2, int block);        // Crea ed esegue i thread
 int main();
