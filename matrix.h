@@ -4,8 +4,8 @@
 #include <pthread.h>
 
 #define R1 4	// Numero di righe della matrice A
-#define C1 4	// Numero di colonne della matrice A
-#define R2 4	// Numero di righe della matrice B
+#define C1 5	// Numero di colonne della matrice A
+#define R2 7	// Numero di righe della matrice B
 #define C2 4	// Numero di colonne della matrice B
 #define R3 4	// Numero di righe della matrice C
 #define C3 4	// Numero di colonne della matrice C
