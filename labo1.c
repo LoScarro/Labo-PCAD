@@ -3,6 +3,8 @@
 #include <time.h>
 #include <pthread.h>
 
+pthread_barrier_t barrier;
+
 struct Matrix
 {
 	int rows;	// number of rows
@@ -38,22 +40,27 @@ void print(struct Matrix mat)
 void *multiply(void *var)
 {
 	struct toMult *mat = (struct toMult *)var;
-	struct Matrix result = {mat->mat1->rows, mat->mat2->cols};
-	result.data = allocMatrix(result);
+	struct Matrix *result = malloc(sizeof(struct Matrix));
+	
+	result->rows=mat->mat1->rows;
+	result->cols = mat->mat2->cols;
+	result->data = allocMatrix(*result);
 
-	//print(*mat->mat2);
+	//print(*mat->mat1);
 
-	for (int i = 0; i < mat->mat1->rows; i++)
+	for (int i = 0; i < result->rows; i++)
 	{
-		for (int j = 0; j < mat->mat2->cols; j++)
+		for (int j = 0; j < result->cols; j++)
 		{
 			// find product
 			for (int k = 0; k < mat->mat1->cols; k++)
-				result.data[i][j] += mat->mat1->data[i][k] * mat->mat2->data[k][j];
+				result->data[i][j] += mat->mat1->data[i][k] * mat->mat2->data[k][j];
 		}
 		//print(mat->mat1);
 	}
-	return &result;
+	//print(*result);
+	pthread_barrier_wait(&barrier);
+	return (void*) result;
 }
 
 int **init(struct Matrix mat)
@@ -105,28 +112,32 @@ struct Matrix decomp(int row, struct Matrix mat1, int index)
 
 	int l = 0;
 
-	for (int i = index; i < row; i++)
+	for (int i = index; i < index+row; i++)
 	{
 		for (int j = 0; j < mat1.cols; j++)
 		{
-			temp.data[i][j] = mat1.data[l][j];
+			temp.data[l][j] = mat1.data[i][j];
 		}
 		l++;
 	}
+	//print(temp);
 	return temp;
 }
 
 void threadCreate(struct Matrix *mat1, struct Matrix *mat2, int block)
 {
+	pthread_barrier_init(&barrier, NULL, block);
 	int row = mat1->rows / block;
 
 	struct Matrix temp = {row, mat1->cols};
 	temp.data = allocMatrix(temp);
 
 	pthread_t *threads = (pthread_t *)calloc(block, sizeof(pthread_t *));
-	struct Matrix *retvals = (struct Matrix *)calloc(block, sizeof(struct Matrix *));
-
+	//struct Matrix *retvals = (struct Matrix *)calloc(block, sizeof(struct Matrix *));
+	struct Matrix *retvals[block];
+	
 	struct toMult args;
+	args.mat2 = mat2;
 
 	struct Matrix res = {0, mat2->cols};
 	res.data = allocMatrix(res);
@@ -135,7 +146,7 @@ void threadCreate(struct Matrix *mat1, struct Matrix *mat2, int block)
 	toMerge.data = allocMatrix(toMerge);
 
 	int index = 0;
-	args.mat2 = mat2;
+
 
 	int count = 0;
 		
@@ -145,7 +156,7 @@ void threadCreate(struct Matrix *mat1, struct Matrix *mat2, int block)
 		{
 			temp=decomp(row, *mat1, index);
 			args.mat1 = &temp;
-			if (pthread_create(&threads[count], NULL, multiply, &args) != 0)
+			if (pthread_create(&threads[count], NULL, &multiply, &args) != 0)
 			{
 				fprintf(stderr, "error: Cannot create thread # %d\n", count);
 				break;
@@ -158,7 +169,7 @@ void threadCreate(struct Matrix *mat1, struct Matrix *mat2, int block)
 			{
 				fprintf(stderr, "error: Cannot join thread # %d\n", i);
 			}
-			print(retvals[i]);
+			print(*retvals[i]);
 		}
 		//-------------------------------------------------------------------------------------------------------------
 
@@ -166,11 +177,9 @@ void threadCreate(struct Matrix *mat1, struct Matrix *mat2, int block)
 		res.data = merge(res, toMerge);*/
 		//------------------------------ threading
 		// res.rows+=toMerge.rows;
-		
-		print(retvals[0]);
 		//printf("%d", retvals[j].rows);
 	
-
+	pthread_barrier_destroy(&barrier);
 	printf("----------------\n");
 }
 
@@ -179,27 +188,27 @@ int main()
 	// int **mat1, **mat2, **mat3, **res;
 	int row1, col1, row2, col2, row3, col3, blockNumber, blockSize;
 
-	printf("Quante righe ha la prima matrice? ");
+	/*printf("Quante righe ha la prima matrice? ");
 	scanf("%d", &row1);
 	printf("Quante colonne ha la prima matrice? ");
-	scanf("%d", &col1);
+	scanf("%d", &col1);*/
 
-	struct Matrix mat1 = {row1, col1};
+	struct Matrix mat1 = {4, 4};
 	mat1.data = allocMatrix(mat1);
 	mat1.data = init(mat1);
 
-	//print(mat1);
+	print(mat1);
 
-	printf("Quante righe ha la seconda matrice? ");
+	/*printf("Quante righe ha la seconda matrice? ");
 	scanf("%d", &row2);
 	printf("Quante colonne ha la seconda matrice? ");
-	scanf("%d", &col2);
+	scanf("%d", &col2);*/
 
-	struct Matrix mat2 = {row2, col2};
+	struct Matrix mat2 = {4, 4};
 	mat2.data = allocMatrix(mat2);
 	mat2.data = init(mat2);
 
-	//print(mat2);
+	print(mat2);
 	printf("-------------------------\n");
 	threadCreate(&mat1, &mat2, 2);
 	// multiply(mat1, mat2);
