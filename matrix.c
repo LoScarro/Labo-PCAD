@@ -37,13 +37,12 @@ float **init(struct Matrix mat)
 
 void *multiply(void *var)
 {
+	
 	struct toMult *mat = (struct toMult *)var;
 	struct Matrix *result = malloc(sizeof(struct Matrix));
-
 	result->rows = mat->mat1->rows;
 	result->cols = mat->mat2->cols;
 	result->data = allocMatrix(*result);
-
 	for (int i = 0; i < result->rows; i++)
 	{
 		for (int j = 0; j < result->cols; j++)
@@ -52,7 +51,6 @@ void *multiply(void *var)
 				result->data[i][j] += mat->mat1->data[i][k] * mat->mat2->data[k][j];
 		}
 	}
-
 	pthread_barrier_wait(&barrier);
 	return (void *)result;
 }
@@ -99,17 +97,17 @@ struct Matrix decomp(int row, struct Matrix mat, int index)
 	return temp;
 }
 
-struct Matrix threadCreate(struct Matrix *mat1, struct Matrix *mat2, int block)
+struct Matrix threadCreate(struct Matrix *mat1, struct Matrix *mat2)
 {
-	pthread_barrier_init(&barrier, NULL, block);
-	int row = mat1->rows / block;
+	pthread_barrier_init(&barrier, NULL, BLOCK);
+	int row = mat1->rows / BLOCK;
 
 	struct Matrix temp = {row, mat1->cols};
 	temp.data = allocMatrix(temp);
 
-	pthread_t *threads = (pthread_t *)calloc(block, sizeof(pthread_t *));
+	pthread_t *threads = (pthread_t *)calloc(BLOCK, sizeof(pthread_t *));
 
-	struct Matrix *retvals[block];
+	struct Matrix *retvals[BLOCK];
 
 	struct toMult args;
 	args.mat2 = mat2;
@@ -117,26 +115,21 @@ struct Matrix threadCreate(struct Matrix *mat1, struct Matrix *mat2, int block)
 	struct Matrix res = {0, mat2->cols};
 	res.data = allocMatrix(res);
 
-	struct Matrix toMerge = {row, mat2->cols};
-	toMerge.data = allocMatrix(toMerge);
-
 	int index = 0;
-
 	int count = 0;
 
-	for (count = 0; count < block; count++)
+	for (count = 0; count < BLOCK; count++)
 	{
 		temp = decomp(row, *mat1, index);
 		index += row;
 		args.mat1 = &temp;
-
 		if (pthread_create(&threads[count], NULL, &multiply, &args) != 0)
 		{
 			fprintf(stderr, "error: Cannot create thread # %d\n", count);
 			break;
 		}
 	}
-	for (int i = 0; i < count; ++i)
+	for (int i = 0; i < count; i++)
 	{
 		if (pthread_join(threads[i], (void *)&retvals[i]) != 0)
 		{
@@ -154,34 +147,34 @@ int main()
 	clock_t start = clock();
 	int row1, col1, row2, col2, row3, col3;
 
-	struct Matrix mat1 = {R1, C1};
+	struct Matrix mat1 = {M, N};
 	mat1.data = allocMatrix(mat1);
 	mat1.data = init(mat1);
 
 	printf("La matrice A è:\n");
 	print(mat1);
 
-	struct Matrix mat2 = {R2, C2};
+	struct Matrix mat2 = {N, P};
 	mat2.data = allocMatrix(mat2);
 	mat2.data = init(mat2);
 
 	printf("La matrice B è:\n");
 	print(mat2);
 
-	struct Matrix mat3 = {R3, C3};
+	struct Matrix mat3 = {P, M};
 	mat3.data = allocMatrix(mat3);
 	mat3.data = init(mat3);
 
 	printf("La matrice C è:\n");
 	print(mat3);
 
-	struct Matrix res1 = {R1, C2};
+	struct Matrix res1 = {M, P};
 	res1.data = allocMatrix(res1);
 
-	res1 = threadCreate(&mat1, &mat2, BLOCK);
+	res1 = threadCreate(&mat1, &mat2);
 	printf("\n");
 	printf("Il risultato del calcolo è:\n");
-	print(threadCreate(&mat3, &res1, BLOCK));
+	print(threadCreate(&mat3, &res1));
 	printf("\n");
 
 	clock_t end = clock();

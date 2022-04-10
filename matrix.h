@@ -3,12 +3,14 @@
 #include <time.h>
 #include <pthread.h>
 
-#define R1 4	// Numero di righe della matrice A
-#define C1 5	// Numero di colonne della matrice A
-#define R2 7	// Numero di righe della matrice B
-#define C2 4	// Numero di colonne della matrice B
-#define R3 4	// Numero di righe della matrice C
-#define C3 4	// Numero di colonne della matrice C
+/*
+• A è una matrice MxN
+• B è una matrice NxP
+• C è una matrice PxM
+*/
+#define M 4
+#define N 6
+#define P 8
 #define BLOCK 2 // Numero di blocchi in cui dividere le matrici
 
 struct Matrix
@@ -30,5 +32,5 @@ float **init(struct Matrix mat);        // Inizializza una matrice con float ran
 void *multiply(void *var);      // Moltiplica due matrici
 struct Matrix merge(struct Matrix mat1, struct Matrix mat2);        // Unisce due matrici
 struct Matrix decomp(int row, struct Matrix mat, int index);       // Divide una matrice in blocchi
-struct Matrix threadCreate(struct Matrix *mat1, struct Matrix *mat2, int block);        // Crea ed esegue i thread
+struct Matrix threadCreate(struct Matrix *mat1, struct Matrix *mat2);        // Crea ed esegue i thread
 int main();
