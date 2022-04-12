@@ -2,12 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <pthread.h>
-
-/*
-• A è una matrice MxN
-• B è una matrice NxP
-• C è una matrice PxM
-*/
+#include <unistd.h>
 
 struct Matrix
 {
@@ -19,17 +14,17 @@ struct Matrix
 struct toMult
 {
 	struct Matrix *mat1;		// Puntatore alla prima matrice
-	struct Matrix *mat2;		// Puntatore alla seconda matrice
-	struct Matrix *mat3;		// Puntatore alla seconda matrice
-	struct Matrix *pRes;		// Puntatore alla matrice contenente i risultati parziali
-	int num;
+	struct Matrix *mat2;		// Puntatore alla seconda  matrice
+	struct Matrix *mat3;
+    struct Matrix *partialRes;		// Contiene il risultato di A*B
+	struct Matrix *res;		// Contiene il risultato di C*(A*B)
+	int threadNum;		// Inidce del thread
 };
 
-float **allocMatrix(struct Matrix mat);     // Alloca un array bidimensionale
-void print(struct Matrix mat);      // Stampa la matrice
-float **init(struct Matrix mat);        // Inizializza una matrice con float randomici
-void *multiply(void *var);      // Moltiplica due matrici
-struct Matrix merge(struct Matrix mat1, struct Matrix mat2);        // Unisce due matrici
-struct Matrix decomp(int row, struct Matrix mat, int index);       // Divide una matrice in blocchi
-struct Matrix threadCreate(struct Matrix *mat1, struct Matrix *mat2);        // Crea ed esegue i thread
+struct Matrix *createMatrix(struct Matrix *mat, int rows, int cols);		// Crea e alloca lo spazio per le matrici
+struct toMult *createResultMatrix(struct toMult *result, struct Matrix *mat1, struct Matrix *mat2, struct Matrix *mat3);		// Gestisce la struct che passerò alla funzione multiply (dato che posso passarle solo un parametro all'interno del thread)
+void print(struct Matrix *mat);		// Stampa la matrice
+void init(struct Matrix *mat);		// Inizializza la matrice con float randomici
+void *multiply(void *arg);		// Si occupa di decomporre e moltiplicare le matrici
+void threading(struct toMult *arg);		// Avvia i thread
 int main();
