@@ -8,10 +8,6 @@
 • B è una matrice NxP
 • C è una matrice PxM
 */
-#define M 4
-#define N 6
-#define P 8
-#define BLOCK 2 // Numero di blocchi in cui dividere le matrici
 
 struct Matrix
 {
@@ -23,7 +19,10 @@ struct Matrix
 struct toMult
 {
 	struct Matrix *mat1;		// Puntatore alla prima matrice
-	struct Matrix *mat2;		// Puntatore alla seconda  matrice
+	struct Matrix *mat2;		// Puntatore alla seconda matrice
+	struct Matrix *mat3;		// Puntatore alla seconda matrice
+	struct Matrix *pRes;		// Puntatore alla matrice contenente i risultati parziali
+	int num;
 };
 
 float **allocMatrix(struct Matrix mat);     // Alloca un array bidimensionale

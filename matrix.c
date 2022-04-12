@@ -1,5 +1,10 @@
 #include "matrix.h"
 
+#define M 4
+#define N 6
+#define P 8
+#define BLOCK 2 // Numero di blocchi in cui dividere le matrici
+
 pthread_barrier_t barrier;
 
 float **allocMatrix(struct Matrix mat)
@@ -48,7 +53,7 @@ void *multiply(void *var)
 		for (int j = 0; j < result->cols; j++)
 		{
 			for (int k = 0; k < mat->mat1->cols; k++)
-				result->data[i][j] += mat->mat1->data[i][k] * mat->mat2->data[k][j];
+				mat->pRes->data[i+mat->num][j] += mat->mat1->data[i][k] * mat->mat2->data[k][j];
 		}
 	}
 	pthread_barrier_wait(&barrier);
@@ -99,6 +104,11 @@ struct Matrix decomp(int row, struct Matrix mat, int index)
 
 struct Matrix threadCreate(struct Matrix *mat1, struct Matrix *mat2)
 {
+	struct Matrix *threadResult = malloc(sizeof(struct Matrix));
+	threadResult->rows = P/2;
+	threadResult->cols = P;
+	threadResult->data = allocMatrix(*threadResult);
+
 	pthread_barrier_init(&barrier, NULL, BLOCK);
 	int row = mat1->rows / BLOCK;
 
@@ -109,8 +119,10 @@ struct Matrix threadCreate(struct Matrix *mat1, struct Matrix *mat2)
 
 	struct Matrix *retvals[BLOCK];
 
-	struct toMult args;
-	args.mat2 = mat2;
+	struct toMult *args = malloc(sizeof(struct toMult));
+	args->mat2 = mat2;
+	args->pRes=threadResult;
+	args->num=0;
 
 	struct Matrix res = {0, mat2->cols};
 	res.data = allocMatrix(res);
@@ -122,12 +134,13 @@ struct Matrix threadCreate(struct Matrix *mat1, struct Matrix *mat2)
 	{
 		temp = decomp(row, *mat1, index);
 		index += row;
-		args.mat1 = &temp;
+		args->mat1 = &temp;
 		if (pthread_create(&threads[count], NULL, &multiply, &args) != 0)
 		{
 			fprintf(stderr, "error: Cannot create thread # %d\n", count);
 			break;
 		}
+		args->num+=row/2;
 	}
 	for (int i = 0; i < count; i++)
 	{
