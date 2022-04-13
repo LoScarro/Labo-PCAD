@@ -6,10 +6,10 @@
 • C è una matrice PxM
 */
 
-#define M 40
-#define N 80
-#define P 180
-#define BLOCK 20	// Numero di blocchi in cui dividere le matrici
+#define M 400
+#define N 800
+#define P 1800
+#define BLOCK 200	// Numero di blocchi in cui dividere le matrici
 
 pthread_barrier_t barrier;
 
@@ -109,12 +109,12 @@ void threading(struct toMult *arg)
 {
 	//Per evitare che l'identificatore dei thread (threadNum) venga modificato all'interno del for
 	//mi creo BLOCK struct che puntatno alle stesse matrici ma possiedono identificatori diversi
-	struct toMult *args[BLOCK];
+	struct toMult args[BLOCK];
 	int tNum=0;
 	for (int i=0;i<BLOCK;i++){
 		struct toMult i=*arg;
 		i.threadNum=tNum;
-		args[tNum]=&i;
+		args[tNum]=i;
 		tNum++;
 	}
 
@@ -125,7 +125,7 @@ void threading(struct toMult *arg)
 	for (count = 0; count < BLOCK; count++)
 	{
 
-		if (pthread_create(&threads[count], NULL, &multiply, args[count]) != 0)
+		if (pthread_create(&threads[count], NULL, &multiply, &args[count]) != 0)
 		{
 			fprintf(stderr, "Errore: impossibile creare thread #%d\n", count);
 			break;
@@ -144,37 +144,46 @@ void threading(struct toMult *arg)
 int main()
 {
 	srand(time(NULL));
+	struct timeval t0, t1, dt;		//Struct per cronometrare i tempo di esecuzione
 
 	struct Matrix *mat1 = createMatrix(mat1, M, N);
 	init(mat1);
-	printf("La matrice A è:\n");
-	print(mat1);
+	/*printf("La matrice A è:\n");
+	print(mat1);		DEBUG*/
 
 	struct Matrix *mat2 = createMatrix(mat2, N, P);
 	init(mat2);
-	printf("La matrice B è:\n");
-	print(mat2);
+	/*printf("La matrice B è:\n");
+	print(mat2);		DEBUG*/
 
 	struct Matrix *mat3 = createMatrix(mat3, P, M);
 	init(mat3);
-	printf("La matrice C è:\n");
-	print(mat3);
+	/*printf("La matrice C è:\n");
+	print(mat3);		DEBUG*/
 
 	struct toMult *result = createResultMatrix(result, mat1, mat2, mat3);
-	clock_t start = clock();
+	
+	gettimeofday(&t0, NULL);		//Tempo di partenza
+	
 	threading(result);
-	clock_t end = clock();
-	printf("La matrice C*(A*B) è:\n");
-	//print(result->res);
+	
+	gettimeofday(&t1, NULL);		//Tempo di fine
+	timersub(&t1, &t0, &dt);
 
-	printf("Tempo di esecuzione con i thread =  %f secondi \n", ((double)(end - start)) / CLOCKS_PER_SEC);
+	//print(result->res);		DEBUG
+
+	fprintf(stderr, "Tempo di esecuzione con i thread = %ld.%06ld sec\n",dt.tv_sec, dt.tv_usec);
 
 	result = createResultMatrix(result, mat1, mat2, mat3);		//Reinizzializzo la struct contenente i risultati
-	start = clock();
+	
+	gettimeofday(&t0, NULL);
+	
 	multiplyNoThreading(result);
-	end = clock();
+	
+	gettimeofday(&t1, NULL);
+	timersub(&t1, &t0, &dt);
 
-	//print(result->res);		debug
+	//print(result->res);		DEBUG
 
-	printf("Tempo di esecuzione senza thread =  %f secondi \n", ((double)(end - start)) / CLOCKS_PER_SEC);
+	fprintf(stderr, "Tempo di esecuzione senza i thread = %ld.%06ld sec\n",dt.tv_sec, dt.tv_usec);
 }
