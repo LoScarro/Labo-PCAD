@@ -9,7 +9,7 @@
 #define M 40
 #define N 80
 #define P 180
-#define BLOCK 5	// Numero di blocchi in cui dividere le matrici
+#define BLOCK 20	// Numero di blocchi in cui dividere le matrici
 
 pthread_barrier_t barrier;
 
@@ -18,10 +18,9 @@ struct Matrix *createMatrix(struct Matrix *mat, int rows, int cols)
 	mat = malloc(sizeof(struct Matrix));
 	mat->rows = rows;
 	mat->cols = cols;
-	mat->data = malloc(rows * sizeof(float *));
+	mat->data = malloc(rows * sizeof(float *));		//Alloco lo spazio per il contenuto della matrice
 	for (int i = 0; i < rows; i++)
 		mat->data[i] = (float *)calloc(cols, sizeof(float));
-
 	return mat;
 }
 
@@ -31,10 +30,31 @@ struct toMult *createResultMatrix(struct toMult *result, struct Matrix *mat1, st
 	result->mat1 = mat1;
 	result->mat2 = mat2;
 	result->mat3 = mat3;
-	result->partialRes = createMatrix(result->partialRes, M, P);
-	result->res = createMatrix(result->res, P, P);
-	result->threadNum = -1;
+	result->partialRes = createMatrix(result->partialRes, M, P);		//Creo la matrice che conterrà il risultato di A*B
+	result->res = createMatrix(result->res, P, P);		//Creo la matrice che conterrà il risultato di C*(A*B)
+	result->threadNum = 0;		//Identificatore del thread, viene usato per posizionare i risultati delle moltiplicazioni nelle righe giuste della matrice finale
 	return result;
+}
+
+void multiplyNoThreading(struct toMult *arg){
+
+	for (int i = 0; i < arg->mat1->rows; i++)		//A*B
+	{
+		for (int j = 0; j < arg->mat2->cols; j++)
+		{
+			for (int k = 0; k < arg->mat1->cols; k++)
+				arg->partialRes->data[i][j] += arg->mat1->data[i][k] * arg->mat2->data[k][j];
+		}
+	}
+
+	for (int i = 0; i < arg->mat3->rows; i++)		//C*R
+	{
+		for (int j = 0; j < arg->partialRes->cols; j++)
+		{
+			for (int k = 0; k < arg->mat3->cols; k++)
+				arg->res->data[i][j] += arg->mat3->data[i][k] * arg->partialRes->data[k][j];
+		}
+	}
 }
 
 void print(struct Matrix *mat)
@@ -58,11 +78,11 @@ void init(struct Matrix *mat)
 void *multiply(void *arg)
 {
 	struct toMult *result = (struct toMult *)arg;
-	int volatile threadNumber = result->threadNum;
+	int threadNumber = result->threadNum;
+	
+	int offset = threadNumber * result->mat1->rows / BLOCK;		//Indica da quale riga cominciare a scrivere/moltiplicare
 
-	int offset = threadNumber * result->mat1->rows / BLOCK;
-
-	for (int i = 0; i < result->mat1->rows / BLOCK; i++)
+	for (int i = 0; i < result->mat1->rows / BLOCK; i++)		//blocco di A*B
 	{
 		for (int j = 0; j < result->mat2->cols; j++)
 		{
@@ -70,11 +90,12 @@ void *multiply(void *arg)
 				result->partialRes->data[i + offset][j] += result->mat1->data[i + offset][k] * result->mat2->data[k][j];
 		}
 	}
-	pthread_barrier_wait(&barrier);
+
+	pthread_barrier_wait(&barrier);		//Aspetto che anche l'altro thread abbia finito di moltiplicare il suo blocco dellla matrice A
 
 	offset = threadNumber * result->mat3->rows / BLOCK;
 
-	for (int i = 0; i < result->mat3->rows / BLOCK; i++)
+	for (int i = 0; i < result->mat3->rows / BLOCK; i++)		//Blocco di C*R
 	{
 		for (int j = 0; j < result->partialRes->cols; j++)
 		{
@@ -86,27 +107,35 @@ void *multiply(void *arg)
 
 void threading(struct toMult *arg)
 {
+	//Per evitare che l'identificatore dei thread (threadNum) venga modificato all'interno del for
+	//mi creo BLOCK struct che puntatno alle stesse matrici ma possiedono identificatori diversi
+	struct toMult *args[BLOCK];
+	int tNum=0;
+	for (int i=0;i<BLOCK;i++){
+		struct toMult i=*arg;
+		i.threadNum=tNum;
+		args[tNum]=&i;
+		tNum++;
+	}
+
 	pthread_barrier_init(&barrier, NULL, BLOCK);
 	pthread_t *threads = (pthread_t *)calloc(BLOCK, sizeof(pthread_t *));
-
-	int index = 0;
 	int count = 0;
 
 	for (count = 0; count < BLOCK; count++)
 	{
-		arg->threadNum += 1;
-		if (pthread_create(&threads[count], NULL, &multiply, arg) != 0)
+
+		if (pthread_create(&threads[count], NULL, &multiply, args[count]) != 0)
 		{
-			fprintf(stderr, "error: Cannot create thread # %d\n", count);
+			fprintf(stderr, "Errore: impossibile creare thread #%d\n", count);
 			break;
-		}
-		sleep(1);
+		}	
 	}
 	for (int i = 0; i < count; i++)
 	{
 		if (pthread_join(threads[i], NULL) != 0)
 		{
-			fprintf(stderr, "error: Cannot join thread # %d\n", i);
+			fprintf(stderr, "Erore : join #%d\n fallita", i);
 		}
 	}
 	pthread_barrier_destroy(&barrier);
@@ -115,7 +144,6 @@ void threading(struct toMult *arg)
 int main()
 {
 	srand(time(NULL));
-	clock_t start = clock();
 
 	struct Matrix *mat1 = createMatrix(mat1, M, N);
 	init(mat1);
@@ -133,10 +161,20 @@ int main()
 	print(mat3);
 
 	struct toMult *result = createResultMatrix(result, mat1, mat2, mat3);
+	clock_t start = clock();
 	threading(result);
 	clock_t end = clock();
 	printf("La matrice C*(A*B) è:\n");
-	print(result->res);
+	//print(result->res);
 
-	printf("Tempo di esecuzione =  %f secondi \n", ((double)(end - start)) / CLOCKS_PER_SEC);
+	printf("Tempo di esecuzione con i thread =  %f secondi \n", ((double)(end - start)) / CLOCKS_PER_SEC);
+
+	result = createResultMatrix(result, mat1, mat2, mat3);		//Reinizzializzo la struct contenente i risultati
+	start = clock();
+	multiplyNoThreading(result);
+	end = clock();
+
+	//print(result->res);		debug
+
+	printf("Tempo di esecuzione senza thread =  %f secondi \n", ((double)(end - start)) / CLOCKS_PER_SEC);
 }

@@ -18,7 +18,7 @@ struct toMult
 	struct Matrix *mat3;
     struct Matrix *partialRes;		// Contiene il risultato di A*B
 	struct Matrix *res;		// Contiene il risultato di C*(A*B)
-	int threadNum;		// Inidce del thread
+	int volatile threadNum;		// Inidce del thread
 };
 
 struct Matrix *createMatrix(struct Matrix *mat, int rows, int cols);		// Crea e alloca lo spazio per le matrici
