@@ -1,5 +1,6 @@
 # Labo-PCAD
 Per eseguire: `make all`
+
 Per cambiare le dimensioni delle matrici modificare le costanti `M`, `N`, `P`nel file `matrix.c`.
 
 Lo scopo dell’esercizio è quello di scrivere un programma C con la libreria pthread per
