@@ -1,6 +1,4 @@
 # Labo-PCAD
-Spettacolari esempi di multithreading in C.
-
 Per eseguire: `make all`
 Per cambiare le dimensioni delle matrici modificare le costanti `M`, `N`, `P`nel file `matrix.c`.
 
