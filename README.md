@@ -12,7 +12,7 @@ float dove
 Markup : 
 * A è una matrice MxN
 * B è una matrice NxP
-* C è una matrice PxM
+* C è una matrice PxM \n
 Per sfruttare il multithreading utilizzare la decomposizione per righe per calcolare sia R=A * B
 che C * R (il risultato è una matrice PxP).
 Utilizzate gli stessi thread nelle due fasi di calcolo applicando una barriera per sincronizzare
