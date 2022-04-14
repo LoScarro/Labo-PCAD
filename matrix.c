@@ -7,9 +7,9 @@
 */
 
 #define M 400
-#define N 800
-#define P 1800
-#define BLOCK 200	// Numero di blocchi in cui dividere le matrici
+#define N 600
+#define P 800
+#define BLOCK 20	// Numero di blocchi in cui dividere le matrici
 
 pthread_barrier_t barrier;
 
@@ -112,9 +112,9 @@ void threading(struct toMult *arg)
 	struct toMult args[BLOCK];
 	int tNum=0;
 	for (int i=0;i<BLOCK;i++){
-		struct toMult i=*arg;
-		i.threadNum=tNum;
-		args[tNum]=i;
+		struct toMult temp=*arg;
+		temp.threadNum=tNum;
+		args[tNum]=temp;
 		tNum++;
 	}
 
